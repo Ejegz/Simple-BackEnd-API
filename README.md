@@ -1,66 +1,88 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+#  Laravel 5 CodePipeline & CodeDeploy Template
+> Piethein Strengholt (2017)
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## About
+An example template for deploying Laravel applications with AWS CodePipeline across an autoscaling group.
+For more information see this tutorial: http://docs.aws.amazon.com/codepipeline/latest/userguide/getting-started-w.html
 
-## About Laravel
+## deploy_laravel script
+The deploy_laravel script takes care of the Laravel deployment. You might want to replace the git url with your own url. Additionally you might want to replace the sed arguments used to configure the environment script. At the moment it is not possible to make these arguments dynamic (see below).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## AWS variables
+Currently it is not possible to pass AWS variables into buildspec.yml from CodePipeline. See more info:
+https://stackoverflow.com/questions/41704517/aws-pass-in-variable-into-buildspec-yml-from-codepipeline
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+As an alternative you can consider the JSON snippet below for your CloudFormation script. The DBHost, DBName, DBUsername and DBPassword varables refer to your database parameters, which should also be defined in your CloudFormation script.
+```
+"files" : {
+  "/var/www/.env" : {
+    "content" : { "Fn::Join" : ["", [
+      "APP_ENV=local\n",
+      "APP_DEBUG=true\n",
+      "APP_KEY=base64:l6kg/jw8Bk1c70FztrJfhXz9mqocYp+aHT1F7JahjxQ=\n",
+      "\n",
+      "APP_URL=http://localhost\n",
+      "SESSION_DOMAIN=localhost\n",
+      "\n",
+      "DB_CONNECTION=mysql\n",
+      "DB_HOST=", { "Ref" : "DBHost" }, "\n",
+      "DB_PORT=3306\n",
+      "DB_DATABASE=", { "Ref" : "DBName" }, "\n",
+      "DB_USERNAME=", { "Ref" : "DBUsername" }, "\n",
+      "DB_PASSWORD=", { "Ref" : "DBPassword" }, "\n",
+      "\n",
+      "CACHE_DRIVER=file\n",
+      "SESSION_DRIVER=database\n",
+      "QUEUE_DRIVER=sync\n"
+      ]]},
+    "mode"  : "000644",
+    "owner" : "root",
+    "group" : "root"
+  }
+}
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Deploy key
+If you want to clone a private repository and want to use a deploy key you can consider doing the following. Type the following command:
 
-## Learning Laravel
+```
+ssh-keygen -t rsa -C "your_email@youremail.com"
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+This will generate a public and a private key. It is best to not type a password, since we don't want to interrupt the deployment process. Add the public key to your GitHub Deploy keys section under settings. The private key should be packaged and added to the appspec.yml file and used during the deployment. See more information here:
+http://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-structure-files.html
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Next step is the following commands. This will start the ssh-agent, trust github and import the private key for your project. You might want to change the location of the rsa file and need to type in your github repository location.
 
-## Laravel Sponsors
+```
+eval `ssh-agent -s`
+echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+ssh-agent bash -c 'ssh-add /root/id_rsa_file; git clone https://github.com:user/project.git'
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+When using the steps above, the deployment will automatically run.
 
-### Premium Partners
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[CMS Max](https://www.cmsmax.com/)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
-- **[Romega Software](https://romegasoftware.com)**
+## Access to the AutoScaling API 
+Make sure the EC2 instances have access to the AutoScaling API. You can achieve this by adding the following policy:
 
-## Contributing
+```
+{
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:Describe*",
+        "autoscaling:EnterStandby",
+        "autoscaling:ExitStandby",
+        "cloudformation:Describe*",
+        "cloudformation:GetTemplate",
+        "s3:Get*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+See more information here: https://aws.amazon.com/blogs/devops/use-aws-codedeploy-to-deploy-to-amazon-ec2-instances-behind-an-elastic-load-balancer-2/
