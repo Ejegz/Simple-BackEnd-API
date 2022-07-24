@@ -4,13 +4,13 @@ files:
   - source: /
     destination: /var/www/html/
 hooks:
-  ApplicationStop:
-    - location: script/stop_server.sh
-      timeout: 120
-      runas: root
   BeforeInstall:
     - location: script/install_dependencies.sh
       timeout: 300
+      runas: root
+  ApplicationStop:
+    - location: script/stop_server.sh
+      timeout: 120
       runas: root
   AfterInstall:
     - location: script/deploy_laravel.sh
