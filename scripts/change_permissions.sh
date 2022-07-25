@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Fix user rights
+chmod u+x *
+sed -i -e 's/^M$//' *
 sudo usermod -a -G apache ec2-user
 sudo chown -R ec2-user:apache /var/www
 sudo chmod 2775 /var/www
